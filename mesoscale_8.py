@@ -7,7 +7,7 @@ import os
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull, Delaunay
 
 directory = os.chdir(os.getcwd())
 
@@ -32,7 +32,7 @@ class Mesoscale:
         self.total_elements = self.l * self.m * self.n
         self.glob = self._global_matrix(self.l, self.m, self.n)
         # size of the aggregate particles
-        self.aggregate_size_ranges = [[20, 25], [25, 30], [30, 35], [35, 40]]
+        self.aggregate_size_ranges = [[5, 10], [10, 15], [15, 20]]
         
         # aggregate size volume fraction.
         self.volume_fractions = [self._aggregate_volume_fraction(i) for i in self.aggregate_size_ranges]
@@ -52,7 +52,7 @@ class Mesoscale:
         self._count = 0
 
         for i, a in enumerate(self.arranged_aggs):
-            while self._condition and self._count < 100:
+            while self._condition and self._count < 5000:
                 self.agg = self._translate(a, self._random_translation_point(self.l, self.m, self.n, self.e))
                 self.loc, self._condition = self._identify_aggregate_and_itz(self.agg)
                 if not self._condition:
@@ -210,16 +210,25 @@ class Mesoscale:
         ooo_array = np.ones(((Ir - ir) + 1, (Jr - jr) + 1, (Kr - kr) + 1), dtype=int)
         return ooo_array
 
-    def _is_adjacent_to_aggregate(self, space, i, j, k):
+    def _is_adjacent_to_aggregate(self, space, local, centroid, i, j, k):
+        # self.delaunay = Delaunay(space.points[space.vertices])
         adjacent_positions = [
             (i + 1, j, k), (i - 1, j, k),
             (i, j + 1, k), (i, j - 1, k),
             (i, j, k + 1), (i, j, k - 1)
         ]
-        for x, y, z in adjacent_positions:
-            if 0 <= x < len(space) and 0 <= y < len(space[0]) and 0 <= z < len(space[0][0]):
-                if space[x][y][z] == 3:
-                    return True
+        
+        # Check if any neighboring cell is outside the convex hull
+        if self.is_point_inside_hull(centroid, space):
+            for x, y, z in adjacent_positions:
+                #  debugging
+                #  print(f"x: {y}, local shape : {local.shape[1]}")
+                 if 0 <= x < local.shape[0] and 0 <= y < local.shape[1] and 0 <= z < local.shape[2]:
+                    # print("here1")
+                    # if local[x][y][z] == 2:
+                    #     return True
+                    if not self.is_point_inside_hull((x, y, z), space):
+                        return True
         return False
     
     import numpy as np
@@ -240,6 +249,8 @@ class Mesoscale:
         
         return contains, sub_glob
 
+    def is_point_inside_huller(self, point):
+        return self.delaunay.find_simplex(point) >= 0
 
     def is_point_inside_hull(self, point, hull, tolerance=1e-12):
         return all(
@@ -318,11 +329,14 @@ class Mesoscale:
             if intru:
                 break
 
+        # print(f"intru boolean:{intru}, intrusion: {intrusion}")
         if not intru:
             for a, i in enumerate(range(ib, Ib + 1)):
                 for b, j in enumerate(range(jb, Jb + 1)):
                     for c, k in enumerate(range(kb, Kb + 1)):
-                        if self._is_adjacent_to_aggregate(local, a, b, c) and not intrusion:
+                        elem_centroid = self._element_central_point(i, j, k, self.e)
+                        if self._is_adjacent_to_aggregate(huller, self.glob, elem_centroid, i, j, k) and not intrusion:
+                            # print("inside here")
                             # let this indicate itz
                             local[a, b, c] = 3
                             self.glob[a+ib, b+jb, c+kb] = local[a, b, c]
@@ -337,7 +351,7 @@ class Mesoscale:
         # x, y, z = non_zero_indices[:, 0], non_zero_indices[:, 1], non_zero_indices[:, 2]
 
         # # Scatter plot
-        # ax.scatter(x, y, z, c=sub_glob[x, y, z], cmap='viridis')
+        # ax.scatter(x, y, z, c=sub_glob[x, y, z], cmap='plasma', marker='^', s=50, edgecolor='k', alpha=0.7)
 
         # ax.set_xlabel('X axis')
         # ax.set_ylabel('Y axis')
@@ -379,9 +393,9 @@ class Mesoscale:
         return area
 
 # Trying to generate and place aggregates.
-m = Mesoscale(300, 300, 300, 20, 40, 1500)
+m = Mesoscale(300, 300, 300, 5, 20, 1000)
 print(m.glob[90][13])
-m._save_vti(m.glob, "mesoscale_model_7.vti")
+m._save_vti(m.glob, "mesoscale_model_8.vti")
 print("saved vtk file.")
 
 unique, counts = np.unique(m.glob, return_counts=True)
