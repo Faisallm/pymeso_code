@@ -586,39 +586,3 @@ class Mesoscale:
         area /= 2.0
 
         return area
-    
-    def convert_vti_to_inp(self, vti_filename, inp_filename):
-        """
-        Converts a VTI file to an INP file for Abaqus using meshio.
-
-        Parameters:
-        vti_filename (str): Path to the input VTI file.
-        inp_filename (str): Path to the output INP file.
-        """
-        # Read the .vti file using PyVista
-        grid = pv.read(vti_filename)
-        
-        # Save it as a .vtk file
-        temp_vtk_filename = 'temp_output.vtk'
-        grid.save(temp_vtk_filename)
-
-        # Read the .vtk file using meshio
-        mesh = meshio.read(temp_vtk_filename)
-
-        # Write the mesh to an .inp file
-        meshio.write(inp_filename, mesh)
-
-# Trying to generate and place aggregates.
-m = Mesoscale(100, 100, 100, 5, 20, 5000)
-# print(m.glob[90][13])
-m._save_vti(m.glob, "mesoscale_model_12.vti")
-m.convert_vti_to_inp("mesoscale_model_12.vti", "mesoscale_model_12.inp")
-# print("saved vtk file.")
-
-unique, counts = np.unique(m.glob, return_counts=True)
-dic = dict(zip(unique, counts))
-print(dic)
-# print(300*300*300)
-co = 0
-for key, value in dic.items():
-    print(f"item: {key}, value: {value}, percent: {(value/(100*100*100))*100}%")
