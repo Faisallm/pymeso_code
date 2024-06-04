@@ -10,6 +10,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from scipy.spatial import ConvexHull
 import meshio
 import pyvista as pv
+import pandas as pd
 
 directory = os.chdir(os.getcwd())
 
@@ -595,24 +596,143 @@ class Mesoscale:
         vti_filename (str): Path to the input VTI file.
         inp_filename (str): Path to the output INP file.
         """
-        # Read the .vti file using PyVista
-        grid = pv.read(vti_filename)
-        
-        # Save it as a .vtk file
-        temp_vtk_filename = 'temp_output.vtk'
-        grid.save(temp_vtk_filename)
+        mesh = pv.read(vti_filename)
 
-        # Read the .vtk file using meshio
-        mesh = meshio.read(temp_vtk_filename)
+        for i in range(1, 4):
+            if 'Material_phases' in mesh.array_names:
+                # Get the array containing material phases
+                material_phases = mesh['Material_phases']
+                
+                # Define the material phase you want to extract (let's say phase 4)
+                target_material_phase = i
+                
+                # Find cells with the target material phase
+                cells_with_material = np.where(material_phases == target_material_phase)[0]
+                
+                # Extract the sub-mesh containing cells with the target material phase
+                sub_mesh = mesh.extract_cells(cells_with_material)
+                
+                # Save the sub-mesh to a new file or do further processing
+                sub_mesh.save('{0}_{1}.vtu'.format(inp_filename, target_material_phase))
+                
+                print("Cells with material phase {} extracted and saved.".format(target_material_phase))
 
-        # Write the mesh to an .inp file
-        meshio.write(inp_filename, mesh)
+            else:
+                print("Mesh does not contain 'Material_phases' array.")
+
+            mesh1 = pv.read(f"{inp_filename}_{i}.vtu")
+            pv.save_meshio(f"{inp_filename}_{i}.inp", mesh1)
+
+            
+
+
+    def _export_data(self, data, export_type='vtk', fileName='mesostructure.vti'):
+            '''
+            The function exports data in the 3D array to the given export type (ex. vtk, npy, npz, csv, txt etc.).
+            
+            Parameters
+            ----------
+            data:     3D array of size NXNXN, type int
+                    Micro/Mesostructure/Inclusion in voxel format.
+            export_type: str.
+                    Export type (vtk/csv/txt/npy/npz)
+            fileName: str.
+                    File location and file name with proper extension (./.../fileName.csv for export_type='csv')
+
+            '''
+
+            if not isinstance(data, np.ndarray):
+                raise Exception('given data must be ndarray type')
+
+            if export_type == 'vtk':
+                ext = os.path.splitext(fileName)
+
+                if ext[1] != '.vti':
+                    raise Exception('File name extension should be .vti for vtk export type')
+                self._write_vti_format(fileName, data)
+
+            elif export_type == 'csv':
+                ext = os.path.splitext(fileName)
+
+                if ext[1] != '.csv':
+                    raise Exception('File name extension should be .csv for csv export type')
+
+                data_shape = np.shape(data)
+
+                [x, y, z] = np.meshgrid(np.arange(0, data_shape[0]), np.arange(0, data_shape[1]), np.arange(0, data_shape[2]))
+
+                data_array = np.array([x.ravel(), y.ravel(), z.ravel(), data.ravel()])
+                data_array = np.transpose(data_array)
+                data_frame = pd.DataFrame(data_array, columns=['x', 'y', 'z', 'values'])
+                data_frame.to_csv(fileName, index=False)
+
+            elif export_type == 'txt':
+                ext = os.path.splitext(fileName)
+
+                if ext[1] != '.txt':
+                    raise Exception('File name extension should be .txt for txt export type')
+
+                data_shape = np.shape(data)
+
+                [x, y, z] = np.meshgrid(np.arange(0, data_shape[0]), np.arange(0, data_shape[1]), np.arange(0, data_shape[2]))
+
+                data_array = np.array([x.ravel(), y.ravel(), z.ravel(), data.ravel()])
+                data_array = np.transpose(data_array)
+                data_frame = pd.DataFrame(data_array, columns=['x', 'y', 'z', 'values'])
+                data_frame.to_csv(fileName, index=False)
+
+            elif export_type == 'npy':
+                ext = os.path.splitext(fileName)
+
+                if ext[1] != '.npy':
+                    raise Exception('File name extension should be .npy for npy export type')
+
+                np.save(fileName, data)
+
+            elif export_type == 'npz':
+                ext = os.path.splitext(fileName)
+
+                if ext[1] != '.npz':
+                    raise Exception('File name extension should be .npz for npz export type')
+                np.savez(fileName, data)
+
+
+    def _write_vti_format(self, filename, phaseScalar):
+        '''
+        e.g  write_vti_format('model101.vti', mcrt)
+        '''
+        with open(filename, 'w+') as f:
+            f.writelines('<?xml version="1.0"?> \n')
+            f.writelines('<VTKFile type="ImageData" version="0.1" byte_order="LittleEndian">\n')
+            # get ndim
+            ndim = phaseScalar.shape  # xdim,ydim,zdim
+            f.writelines(' ' * 1 + '<ImageData WholeExtent="' + str(0) + ' ' + str(ndim[0]) + ' ' + str(0) + ' ' + str(
+                ndim[1]) + ' ' + str(0) + ' ' + str(ndim[2]) + '" Origin="0 0 0" Spacing="1 1 1">\n')
+            f.writelines(
+                ' ' * 2 + '<Piece Extent="' + str(0) + ' ' + str(ndim[0]) + ' ' + str(0) + ' ' + str(ndim[1]) + ' ' + str(
+                    0) + ' ' + str(ndim[2]) + '">\n')
+            f.writelines(' ' * 3 + '<CellData>\n')
+            f.writelines(
+                ' ' * 4 + '<DataArray type="Int32" NumberOfComponents="1" Name="Material_phases" format="ascii">\n')
+
+            f.writelines(' ' * 5)
+            np.transpose(phaseScalar, [2, 1, 0]).tofile(f, sep=" ", format="%d")  # check write array
+            f.writelines('\n' + ' ' * 4 + '</DataArray>\n')
+
+            f.writelines(' ' * 3 + '</CellData>\n')
+            self._vti_tail(f)
+
+    def _vti_tail(self, f):
+        f.writelines(' ' * 2 + '</Piece>\n')
+        f.writelines(' ' * 1 + '</ImageData>\n')
+        f.writelines('</VTKFile>')
 
 # Trying to generate and place aggregates.
 m = Mesoscale(100, 100, 100, 5, 20, 5000)
 # print(m.glob[90][13])
-m._save_vti(m.glob, "mesoscale_model_12.vti")
-m.convert_vti_to_inp("mesoscale_model_12.vti", "mesoscale_model_12.inp")
+m._save_vti(m.glob, "mesoscale_model_15.vti")
+m._export_data(m.glob, export_type="vtk", fileName="mesoscale_model_155.vti")
+m.convert_vti_to_inp("mesoscale_model_15.vti", "output_topology")
 # print("saved vtk file.")
 
 unique, counts = np.unique(m.glob, return_counts=True)

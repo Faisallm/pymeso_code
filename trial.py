@@ -1,17 +1,9 @@
-import numpy as np
+from pymesoscale.local_background_grid.mesoscale import Mesoscale
 
-l, m, n = 3, 4, 5
-array = np.ones((l, m, n), dtype=int)
+# length, width and height, minimum and maximum aggregate, max_attempts
+m = Mesoscale(100, 100, 100, 5, 20, 5000)
 
-print(array.shape)
-# Output: (3, 4, 5)
-
-# Accessing the first element
-print(array[0, 0, 0])
-# Output: 1
-
-# Accessing the last element
-print(array[2, 3, 4])
-# Output: 1
-print(array[3, 4, 5])
-# Output: 1
+# providing file names to save .vti file and .inp file...
+# these files are stored in our current working directory
+m._save_vti(m.glob, "mesoscale_model_12.vti")
+m.convert_vti_to_inp("mesoscale_model_12.vti", "mesoscale_model_12.inp")
