@@ -139,7 +139,7 @@ class Mesoscale:
         print(f"Global: {self.glob}")
         
         # self._save_vti(self.glob, "aggregate.vti")
-        unique, counts = np.unique(m.glob, return_counts=True)
+        unique, counts = np.unique(self.glob, return_counts=True)
         dic = dict(zip(unique, counts))
         print(dic)
         # print(300*300*300)
