@@ -138,7 +138,19 @@ class Mesoscale:
         print(f"Local: {self.loc}")
         print(f"Global: {self.glob}")
         
-        self._save_vti(self.glob, "aggregate.vti")
+        # self._save_vti(self.glob, "aggregate.vti")
+        unique, counts = np.unique(m.glob, return_counts=True)
+        dic = dict(zip(unique, counts))
+        print(dic)
+        # print(300*300*300)
+        co = 0
+        for key, value in dic.items():
+            if key == 1:
+                print(f"mortar: {key}, value: {value}, percent: {(value/(self.L*self.W*self.H))*100}%")
+            elif key == 2:
+                print(f"aggregate: {key}, value: {value}, percent: {(value/(self.L*self.W*self.H))*100}%")
+            else:
+                print(f"ITZ: {key}, value: {value}, percent: {(value/(self.L*self.W*self.H))*100}%")
 
     def _element_coordinates(self, i, j, k, e):
         """This code determines the eight nodes of any element
@@ -732,13 +744,7 @@ m = Mesoscale(100, 100, 100, 5, 20, 5000)
 # print(m.glob[90][13])
 m._save_vti(m.glob, "mesoscale_model_15.vti")
 m._export_data(m.glob, export_type="vtk", fileName="mesoscale_model_155.vti")
-m.convert_vti_to_inp("mesoscale_model_15.vti", "output_topology")
+m.convert_vti_to_inp("mesoscale_model_155.vti", "output_topology")
 # print("saved vtk file.")
 
-unique, counts = np.unique(m.glob, return_counts=True)
-dic = dict(zip(unique, counts))
-print(dic)
-# print(300*300*300)
-co = 0
-for key, value in dic.items():
-    print(f"item: {key}, value: {value}, percent: {(value/(100*100*100))*100}%")
+

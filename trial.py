@@ -1,9 +1,9 @@
 from pymesoscale.local_background_grid.mesoscale import Mesoscale
 
-# length, width and height, minimum and maximum aggregate, max_attempts
-m = Mesoscale(100, 100, 100, 5, 20, 5000)
 
-# providing file names to save .vti file and .inp file...
-# these files are stored in our current working directory
-m._save_vti(m.glob, "mesoscale_model_12.vti")
-m.convert_vti_to_inp("mesoscale_model_12.vti", "mesoscale_model_12.inp")
+# Trying to generate and place aggregates.
+m = Mesoscale(100, 100, 100, 5, 20, 5000)
+# export 3D array to vti file for visualization with Paraview
+m._export_data(m.glob, export_type="vtk", fileName="mesoscale_model_16.vti")
+# convert vti file -> vtu file -> .inp file for analysis in abaqus.
+m.convert_vti_to_inp("mesoscale_model_16.vti", "output_topology_16")
