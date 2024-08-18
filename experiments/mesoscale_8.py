@@ -81,13 +81,28 @@ class Mesoscale:
 
         self.agg_fraction = np.array([int(i * self.number) for i in self.volume_fractions])
         ## convert to numpy
+
+        # polyhedral aggregate.
         self.aggs = np.array([])
+        # attached mortar polyhedral aggregate.
+        self.amc_aggs = np.array([])
+        
         
         for i, size in enumerate(self.aggregate_size_ranges):
             ## convert to numpy
             aggu = np.array([self._generate_polyhedron(size[0], size[1]) for _ in range(self.agg_fraction[i])], dtype=object)
             # self.aggs.extend(aggu)
-            self.aggs = np.concatenate((self.aggs, aggu))
+            aggu1, aggu2 = [a[0] for a in aggu], [a[1] for a in aggu]
+            # testing
+            # print(f"Len of Aggu 1: {len(aggu1)}")
+            # print(f"Len of Aggu 2: {len(aggu2)}")
+            # print(f"aggu1: {aggu1[0]}")
+            # print(f"aggu2: {aggu2[0]}")
+            aggu1, aggu2 = np.array(aggu1, dtype=object), np.array(aggu2, dtype=object)
+            self.aggs = np.concatenate((self.aggs, aggu1))
+            self.amc_aggs = np.concatenate((self.amc_aggs, aggu2))
+
+        print(f"Len 1: {len(self.aggs)}, Len 2: {len(self.amc_aggs)}")
 
         # sorting aggregates (Descending order, largest to smallest)
         self.arranged_aggs = sorted(self.aggs, key=lambda x: self._polyhedral_area(x), reverse=True)
@@ -134,14 +149,27 @@ class Mesoscale:
         # number of aggregate of each particle size.
 
         self.agg_fraction = np.array([int(i * self.number) for i in self.volume_fractions])
-        ## convert to numpy
+        # polyhedral aggregate.
         self.aggs = np.array([])
+        # attached mortar polyhedral aggregate.
+        self.amc_aggs = np.array([])
+        
         
         for i, size in enumerate(self.aggregate_size_ranges):
             ## convert to numpy
             aggu = np.array([self._generate_polyhedron(size[0], size[1]) for _ in range(self.agg_fraction[i])], dtype=object)
             # self.aggs.extend(aggu)
-            self.aggs = np.concatenate((self.aggs, aggu))
+            aggu1, aggu2 = [a[0] for a in aggu], [a[1] for a in aggu]
+            # testing
+            # print(f"Len of Aggu 1: {len(aggu1)}")
+            # print(f"Len of Aggu 2: {len(aggu2)}")
+            # print(f"aggu1: {aggu1[0]}")
+            # print(f"aggu2: {aggu2[0]}")
+            aggu1, aggu2 = np.array(aggu1, dtype=object), np.array(aggu2, dtype=object)
+            self.aggs = np.concatenate((self.aggs, aggu1))
+            self.amc_aggs = np.concatenate((self.amc_aggs, aggu2))
+
+        print(f"Len 1: {len(self.aggs)}, Len 2: {len(self.amc_aggs)}")
 
         # sorting aggregates (Descending order, largest to smallest)
         self.arranged_aggs = sorted(self.aggs, key=lambda x: self._polyhedral_area(x), reverse=True)
@@ -187,14 +215,27 @@ class Mesoscale:
         # number of aggregate of each particle size.
 
         self.agg_fraction = np.array([int(i * self.number) for i in self.volume_fractions])
-        ## convert to numpy
+        # polyhedral aggregate.
         self.aggs = np.array([])
+        # attached mortar polyhedral aggregate.
+        self.amc_aggs = np.array([])
+        
         
         for i, size in enumerate(self.aggregate_size_ranges):
             ## convert to numpy
             aggu = np.array([self._generate_polyhedron(size[0], size[1]) for _ in range(self.agg_fraction[i])], dtype=object)
             # self.aggs.extend(aggu)
-            self.aggs = np.concatenate((self.aggs, aggu))
+            aggu1, aggu2 = [a[0] for a in aggu], [a[1] for a in aggu]
+            # testing
+            # print(f"Len of Aggu 1: {len(aggu1)}")
+            # print(f"Len of Aggu 2: {len(aggu2)}")
+            # print(f"aggu1: {aggu1[0]}")
+            # print(f"aggu2: {aggu2[0]}")
+            aggu1, aggu2 = np.array(aggu1, dtype=object), np.array(aggu2, dtype=object)
+            self.aggs = np.concatenate((self.aggs, aggu1))
+            self.amc_aggs = np.concatenate((self.amc_aggs, aggu2))
+
+        print(f"Len 1: {len(self.aggs)}, Len 2: {len(self.amc_aggs)}")
 
         # sorting aggregates (Descending order, largest to smallest)
         self.arranged_aggs = sorted(self.aggs, key=lambda x: self._polyhedral_area(x), reverse=True)
@@ -382,6 +423,23 @@ class Mesoscale:
         matrix = np.ones((l, m, n), dtype=int)
         return matrix
 
+    def _generate_amc(self, x, y, z):
+        """
+            This function will generate the attached mortar
+            content of an aggregate.
+        """
+
+        random_num  = random.random()
+        amc  =  0.4
+        if  random_num  >=  amc:
+            # we will  create a new set of vertice for the stone fraction
+            cal  = ((1-amc)**(1/3))
+            xsi,  ysi, zsi  =  (cal  * x, cal * y, cal * z)
+        else:
+            xsi, ysi, zsi =  x, y, z
+
+        return  np.array((xsi, ysi, zsi))
+
     def _generate_points(self, radius):
         """This function is responsible for the generation of the coordinates
         (x, y, z) of the vertex of a polygon.
@@ -394,7 +452,11 @@ class Mesoscale:
         xi = radius * math.sin(zenith) * math.cos(azimuth)
         yi = radius * math.sin(zenith) * math.sin(azimuth)
         zi = radius * math.cos(azimuth)
-        return np.array((xi, yi, zi))
+
+        # attached mortar content
+        amc = self._generate_amc(xi, yi, zi)
+
+        return np.array((xi, yi, zi)), amc
 
     def _generate_polyhedron(self, dmin, dmax):
         """
@@ -413,7 +475,9 @@ class Mesoscale:
         r = (dmin / 2) + (neeta * ((dmax - dmin) / 2))
         choices = [i for i in range(15, 25)]
         polyhedron = [self._generate_points(r) for _ in range(random.choice(choices))]
-        return np.array(polyhedron)
+        poly, amc_poly = [i[0] for i in polyhedron], [i[1] for i in polyhedron]
+        # return np.array(polyhedron[0]), np.array(polyhedron[1])
+        return poly, amc_poly
 
     def _random_translation_point(self, l, m, n, e):
         """Represent the coordinates (xp, yp, zp) of the
@@ -905,11 +969,11 @@ from datetime import datetime
 start_time = datetime.now()
 
 # Trying to generate and place aggregates.
-m = Mesoscale(150, 150, 150, 4, 24, 6000, 0.45)
+m = Mesoscale(150, 150, 150, 4, 24, 500, 0.45)
 # print(m.glob[90][13])
 m._save_vti(m.glob, "faisal1.vti")
 m._export_data(m.glob, export_type="vtk", fileName="faisal1.vti")
-m.convert_vti_to_inp("faisal1.vti", "output_topology_n_45")
+m.convert_vti_to_inp("faisal1.vti", "output_topology_n")
 # print("saved vtk file.")
 
 end_time = datetime.now()
