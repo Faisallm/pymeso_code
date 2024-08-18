@@ -15,7 +15,7 @@ import pandas as pd
 directory = os.chdir(os.getcwd())
 
 class Mesoscale:
-    def __init__(self, L, W, H, dmin, dmax, number):
+    def __init__(self, L, W, H, dmin, dmax, number, exponent):
 
         # initialization of the global background grid
         # the global background grid of concrete specimen.
@@ -27,6 +27,9 @@ class Mesoscale:
         self.L = L
         self.W = W
         self.H = H
+
+        # empirical exponent (n) is usually taken between 0.45 and 0.7
+        self.exponent = exponent
 
         # minimum and maximum aggregate size value.
         # this value helps in the generation of the polyhedral aggregate.
@@ -43,7 +46,7 @@ class Mesoscale:
 
         # 1 is selected to ease computation, to prevent fractions...
         # and to pass the assertion test.
-        self.e = 1
+        self.e = int((1/4)*self.dmin)
 
         # represents the number of elements along x, y and z direction.
         self.l = int(self.L // self.e)
@@ -64,27 +67,40 @@ class Mesoscale:
         self.glob = self._global_matrix(self.l, self.m, self.n)
 
         # size of the aggregate particles
-        self.aggregate_size_ranges = [[5, 10], [10, 15], [15, 20]]
+        # self.aggregate_size_ranges = [[4, 10], [10, 15], [15, 24]]
+
+        ## convert to numpy
+        self.aggregate_size_ranges = np.array([[i, i + self.dmin] for i in range(self.dmin, self.dmax, self.dmin)])
         
         # aggregate size volume fraction.
-        self.volume_fractions = [self._aggregate_volume_fraction(i) for i in self.aggregate_size_ranges]
+
+        ## convert to numpy
+        self.volume_fractions = np.array([self._aggregate_volume_fraction(i) for i in self.aggregate_size_ranges])
+        print(f"range: {self.aggregate_size_ranges}, aggregate volume fraction: {self.volume_fractions}, sum: {sum(self.volume_fractions)}")
         # number of aggregate of each particle size.
-        self.agg_fraction = [int(i * self.number) for i in self.volume_fractions]
-        self.aggs = []
+
+        self.agg_fraction = np.array([int(i * self.number) for i in self.volume_fractions])
+        ## convert to numpy
+        self.aggs = np.array([])
         
         for i, size in enumerate(self.aggregate_size_ranges):
-            aggu = [self._generate_polyhedron(size[0], size[1]) for _ in range(self.agg_fraction[i])]
-            self.aggs.extend(aggu)
+            ## convert to numpy
+            aggu = np.array([self._generate_polyhedron(size[0], size[1]) for _ in range(self.agg_fraction[i])], dtype=object)
+            # self.aggs.extend(aggu)
+            self.aggs = np.concatenate((self.aggs, aggu))
 
         # sorting aggregates (Descending order, largest to smallest)
         self.arranged_aggs = sorted(self.aggs, key=lambda x: self._polyhedral_area(x), reverse=True)
+        print(f"Length of generated aggregates: {len(self.arranged_aggs)}.")
         self.agg_counts = 0
     
         self._condition = True
         self._count = 0
 
+        
         for i, a in enumerate(self.arranged_aggs):
-            while self._condition and self._count < 5000:
+            while self._condition and self._count < 20:
+                # translate the aggregate to a random location point.
                 self.agg = self._translate(a, self._random_translation_point(self.l, self.m, self.n, self.e))
                 # local grid
                 # If their is an intrusion, I want the aggregate to be randomly translated to a new
@@ -94,63 +110,200 @@ class Mesoscale:
                     self._condition = False
                     self._count = 0
                     print("No intrusion")
+                    # we only place when there is no intrusion.
+                    print(f"Placed #{i+1} aggregate.")
                 else:
                     self._count += 1
                     print("Intrusion detected!")
+                    if self._count > 20:
+                        print(f"Could not place #{i+1} aggregate.")
             self._condition = True
-            print(f"Placed #{i+1} aggregate.")
+            # this is the new addition.
+            self._count = 0
 
-        self.aggregate_size_ranges = [[5, 10]]
+        ########################  (2)
+
+        ## convert to numpy
+        self.aggregate_size_ranges = np.array([[i, i + self.dmin] for i in range(self.dmin, self.dmin*self.dmin, self.dmin)])
         
         # aggregate size volume fraction.
-        self.volume_fractions = [self._aggregate_volume_fraction(i) for i in self.aggregate_size_ranges]
 
+        ## convert to numpy
+        self.volume_fractions = np.array([self._aggregate_volume_fraction(i) for i in self.aggregate_size_ranges])
+        print(f"range: {self.aggregate_size_ranges}, aggregate volume fraction: {self.volume_fractions}, sum: {sum(self.volume_fractions)}")
         # number of aggregate of each particle size.
-        self.agg_fraction = [int(i * self.number) for i in self.volume_fractions]
-        self.aggs = []
+
+        self.agg_fraction = np.array([int(i * self.number) for i in self.volume_fractions])
+        ## convert to numpy
+        self.aggs = np.array([])
         
         for i, size in enumerate(self.aggregate_size_ranges):
-            aggu = [self._generate_polyhedron(size[0], size[1]) for _ in range(self.agg_fraction[i])]
-            self.aggs.extend(aggu)
+            ## convert to numpy
+            aggu = np.array([self._generate_polyhedron(size[0], size[1]) for _ in range(self.agg_fraction[i])], dtype=object)
+            # self.aggs.extend(aggu)
+            self.aggs = np.concatenate((self.aggs, aggu))
 
         # sorting aggregates (Descending order, largest to smallest)
         self.arranged_aggs = sorted(self.aggs, key=lambda x: self._polyhedral_area(x), reverse=True)
+        print(f"Length of generated aggregates: {len(self.arranged_aggs)}.")
         self.agg_counts = 0
     
         self._condition = True
         self._count = 0
 
-
         for i, a in enumerate(self.arranged_aggs):
-            while self._condition and self._count < 5000:
+            while self._condition and self._count < 20:
+                # translate the aggregate to a random location point.
                 self.agg = self._translate(a, self._random_translation_point(self.l, self.m, self.n, self.e))
+                # local grid
+                # If their is an intrusion, I want the aggregate to be randomly translated to a new
+                # location for placing for atleast self._count times.
                 self.loc, self._condition = self._identify_aggregate_and_itz(self.agg)
                 if not self._condition:
                     self._condition = False
                     self._count = 0
                     print("No intrusion")
+                    # we only place when there is no intrusion.
+                    print(f"Placed #{i+1} aggregate.")
                 else:
                     self._count += 1
                     print("Intrusion detected!")
+                    if self._count > 20:
+                        print(f"Could not place #{i+1} aggregate.")
             self._condition = True
-            print(f"Placed #{i+1} aggregate.")
+            # this is the new addition.
+            self._count = 0
+
+        ######################## (3)
+
+        ## convert to numpy
+        self.aggregate_size_ranges = np.array([[i, i + self.dmin] for i in range(self.dmin, self.dmin*int(self.dmin/2), self.dmin)])
         
-        print(f"Local: {self.loc}")
-        print(f"Global: {self.glob}")
+        # aggregate size volume fraction.
+
+        ## convert to numpy
+        self.volume_fractions = np.array([self._aggregate_volume_fraction(i) for i in self.aggregate_size_ranges])
+        print(f"range: {self.aggregate_size_ranges}, aggregate volume fraction: {self.volume_fractions}, sum: {sum(self.volume_fractions)}")
+        # number of aggregate of each particle size.
+
+        self.agg_fraction = np.array([int(i * self.number) for i in self.volume_fractions])
+        ## convert to numpy
+        self.aggs = np.array([])
         
+        for i, size in enumerate(self.aggregate_size_ranges):
+            ## convert to numpy
+            aggu = np.array([self._generate_polyhedron(size[0], size[1]) for _ in range(self.agg_fraction[i])], dtype=object)
+            # self.aggs.extend(aggu)
+            self.aggs = np.concatenate((self.aggs, aggu))
+
+        # sorting aggregates (Descending order, largest to smallest)
+        self.arranged_aggs = sorted(self.aggs, key=lambda x: self._polyhedral_area(x), reverse=True)
+        print(f"Length of generated aggregates: {len(self.arranged_aggs)}.")
+        self.agg_counts = 0
+    
+        self._condition = True
+        self._count = 0
+
+        for i, a in enumerate(self.arranged_aggs):
+            while self._condition and self._count < 50:
+                # translate the aggregate to a random location point.
+                self.agg = self._translate(a, self._random_translation_point(self.l, self.m, self.n, self.e))
+                # local grid
+                # If their is an intrusion, I want the aggregate to be randomly translated to a new
+                # location for placing for atleast self._count times.
+                self.loc, self._condition = self._identify_aggregate_and_itz(self.agg)
+                if not self._condition:
+                    self._condition = False
+                    self._count = 0
+                    print("No intrusion")
+                    # we only place when there is no intrusion.
+                    print(f"Placed #{i+1} aggregate.")
+                else:
+                    self._count += 1
+                    print("Intrusion detected!")
+                    if self._count > 50:
+                        print(f"Could not place #{i+1} aggregate.")
+            self._condition = True
+            # this is the new addition.
+            self._count = 0
+            
+
         # self._save_vti(self.glob, "aggregate.vti")
-        unique, counts = np.unique(m.glob, return_counts=True)
+        unique, counts = np.unique(self.glob, return_counts=True)
         dic = dict(zip(unique, counts))
         print(dic)
         # print(300*300*300)
         co = 0
+        agg_value = 0
+
         for key, value in dic.items():
             if key == 1:
                 print(f"mortar: {key}, value: {value}, percent: {(value/(self.L*self.W*self.H))*100}%")
             elif key == 2:
                 print(f"aggregate: {key}, value: {value}, percent: {(value/(self.L*self.W*self.H))*100}%")
+                agg_value = (value/(self.L*self.W*self.H))*100
+                    
             else:
                 print(f"ITZ: {key}, value: {value}, percent: {(value/(self.L*self.W*self.H))*100}%")
+                itz_value = (value/(self.L*self.W*self.H))*100
+            
+        if (agg_value+itz_value) > 30:
+            print("Greater than 30%")
+            agg_vol_frac = False
+        else:
+            print("Less than 30%")
+
+        # self.aggregate_size_ranges = [[5, 10]]
+        
+        # # aggregate size volume fraction.
+        # self.volume_fractions = [self._aggregate_volume_fraction(i) for i in self.aggregate_size_ranges]
+
+        # # number of aggregate of each particle size.
+        # self.agg_fraction = [int(i * self.number) for i in self.volume_fractions]
+        # self.aggs = []
+        
+        # for i, size in enumerate(self.aggregate_size_ranges):
+        #     aggu = [self._generate_polyhedron(size[0], size[1]) for _ in range(self.agg_fraction[i])]
+        #     self.aggs.extend(aggu)
+
+        # # sorting aggregates (Descending order, largest to smallest)
+        # self.arranged_aggs = sorted(self.aggs, key=lambda x: self._polyhedral_area(x), reverse=True)
+        # self.agg_counts = 0
+    
+        # self._condition = True
+        # self._count = 0
+
+
+        # for i, a in enumerate(self.arranged_aggs):
+        #     while self._condition and self._count < 5000:
+        #         self.agg = self._translate(a, self._random_translation_point(self.l, self.m, self.n, self.e))
+        #         self.loc, self._condition = self._identify_aggregate_and_itz(self.agg)
+        #         if not self._condition:
+        #             self._condition = False
+        #             self._count = 0
+        #             print("No intrusion")
+        #         else:
+        #             self._count += 1
+        #             print("Intrusion detected!")
+        #     self._condition = True
+        #     print(f"Placed #{i+1} aggregate.")
+        
+        print(f"Local: {self.loc}")
+        print(f"Global: {self.glob}")
+        
+        # # self._save_vti(self.glob, "aggregate.vti")
+        # unique, counts = np.unique(self.glob, return_counts=True)
+        # dic = dict(zip(unique, counts))
+        # print(dic)
+        # # print(300*300*300)
+        # co = 0
+        # for key, value in dic.items():
+        #     if key == 1:
+        #         print(f"mortar: {key}, value: {value}, percent: {(value/(self.L*self.W*self.H))*100}%")
+        #     elif key == 2:
+        #         print(f"aggregate: {key}, value: {value}, percent: {(value/(self.L*self.W*self.H))*100}%")
+        #     else:
+        #         print(f"ITZ: {key}, value: {value}, percent: {(value/(self.L*self.W*self.H))*100}%")
 
     def _element_coordinates(self, i, j, k, e):
         """This code determines the eight nodes of any element
@@ -187,10 +340,11 @@ class Mesoscale:
     def _fuller(self, d):
         """This function represents the fuller curve which is one
         of the ideal gradation used for aggregate size distribution
-        in order to achieve maximum density of packing."""
+        in order to achieve maximum density of aggregate packing."""
         n = 0.5
+        # deprecated (this shouldn't have a static value).
         D = 20
-        return ((d/D)**n)
+        return ((d/self.dmax)**self.exponent)
 
     def _element_central_point(self, i, j, k, e):
         """This prints the coordinates of the central point
@@ -275,19 +429,26 @@ class Mesoscale:
         e = element size (1/4)~(1/8) of dmin.
         To further improve the efficiency of aggregate random placement,
         the random translation point P can be controlled to fall inside the
-        mortar elements.
+        mortar elements with value of 1.
         To ensure that the random translation point falls within the
         dimensions of the concrete specimen
         0 <= Xi"""
 
+        # while True:
+        #     n7, n8, n9 = random.random(), random.random(), random.random()
+        #     xp, yp, zp = (n7 * l * e, n8 * m * e, n9 * n * e)
+        #     if (0 <= xp < l * e) and (0 <= yp < m * e) and (0 <= zp < n * e):
+        #         element = self._locate_element(xp, yp, zp, e)
+        #         if self.glob[element[0], element[1], element[2]] == 1:
+        #             break
+        # return np.array((xp, yp, zp))
         while True:
             n7, n8, n9 = random.random(), random.random(), random.random()
             xp, yp, zp = (n7 * l * e, n8 * m * e, n9 * n * e)
             if (0 <= xp < l * e) and (0 <= yp < m * e) and (0 <= zp < n * e):
                 element = self._locate_element(xp, yp, zp, e)
                 if self.glob[element[0], element[1], element[2]] == 1:
-                    break
-        return np.array((xp, yp, zp))
+                    return np.array((xp, yp, zp))
 
     def _translate(self, aggregate, translation_point):
         """The newly generated random polyhedral aggregate is directly put into
@@ -739,12 +900,19 @@ class Mesoscale:
         f.writelines(' ' * 1 + '</ImageData>\n')
         f.writelines('</VTKFile>')
 
+from datetime import datetime
+
+start_time = datetime.now()
+
 # Trying to generate and place aggregates.
-m = Mesoscale(100, 100, 100, 5, 20, 5000)
+m = Mesoscale(150, 150, 150, 4, 24, 6000, 0.45)
 # print(m.glob[90][13])
-m._save_vti(m.glob, "mesoscale_model_15.vti")
-m._export_data(m.glob, export_type="vtk", fileName="mesoscale_model_155.vti")
-m.convert_vti_to_inp("mesoscale_model_155.vti", "output_topology")
+m._save_vti(m.glob, "faisal1.vti")
+m._export_data(m.glob, export_type="vtk", fileName="faisal1.vti")
+m.convert_vti_to_inp("faisal1.vti", "output_topology_n_45")
 # print("saved vtk file.")
 
+end_time = datetime.now()
 
+execution_time = end_time - start_time
+print(f"Execution time: {execution_time}")
