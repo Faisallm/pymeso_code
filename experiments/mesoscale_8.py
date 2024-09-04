@@ -27,6 +27,8 @@ class Mesoscale:
         self.L = L
         self.W = W
         self.H = H
+        
+        self.concrete_volume = (self.L)**3
 
         # empirical exponent (n) is usually taken between 0.45 and 0.7
         self.exponent = exponent
@@ -46,7 +48,8 @@ class Mesoscale:
 
         # 1 is selected to ease computation, to prevent fractions...
         # and to pass the assertion test.
-        self.e = int((1/4)*self.dmin)
+        # self.e = int((1/4)*self.dmin)
+        self.e = 1
 
         # represents the number of elements along x, y and z direction.
         self.l = int(self.L // self.e)
@@ -112,26 +115,50 @@ class Mesoscale:
     
         self._condition = True
         self._count = 0
+        aggregate_volume_list = []
 
         
         for i, (a, amc_a) in enumerate(zip(self.arranged_aggs, self.arranged_amc_aggs)):
-            while self._condition and self._count < 20:
+            while self._condition and self._count < 5000:
                 # translate the aggregate to a random location point.
-                self.agg, self.amc_agg = self._translate(a, amc_a, self._random_translation_point(self.l, self.m, self.n, self.e))
+                random_translation_point = self._random_translation_point(self.l, self.m, self.n, self.e)
+                self.agg, self.amc_agg = self._translate(a, amc_a, random_translation_point)
                 # local grid
                 # If their is an intrusion, I want the aggregate to be randomly translated to a new
                 # location for placing for atleast self._count times.
                 self.loc, self._condition = self._identify_aggregate_and_itz(self.agg, self.amc_agg)
+
+                # if there is an intrusion
+                rotated = False
+                inner_count = 0
+                while self._condition and inner_count < 5000:
+                    # in try to rotate the aggregate in the same translated location
+                    self.agg, self.amc_agg = self._rotate(a, amc_a, random_translation_point)
+                    self.loc, self._condition = self._identify_aggregate_and_itz(self.agg, self.amc_agg)
+
+                    if not self._condition:
+                        print("No intrusion, rotation worked!")
+
+                    if self._condition and inner_count < 5000:
+                        inner_count += 1
+                        continue
+                    else:
+                        inner_count = 0
+                        break 
+
+
                 if not self._condition:
                     self._condition = False
                     self._count = 0
                     print("No intrusion")
                     # we only place when there is no intrusion.
                     print(f"Placed #{i+1} aggregate.")
+                    agg_volume = self._calculate_aggregate_volume(amc_a)
+                    aggregate_volume_list.append(agg_volume)
                 else:
                     self._count += 1
                     print("Intrusion detected!")
-                    if self._count > 20:
+                    if self._count > 5000:
                         print(f"Could not place #{i+1} aggregate.")
             self._condition = True
             # this is the new addition.
@@ -185,23 +212,44 @@ class Mesoscale:
 
         
         for i, (a, amc_a) in enumerate(zip(self.arranged_aggs, self.arranged_amc_aggs)):
-            while self._condition and self._count < 20:
+            while self._condition and self._count < 5000:
                 # translate the aggregate to a random location point.
                 self.agg, self.amc_agg = self._translate(a, amc_a, self._random_translation_point(self.l, self.m, self.n, self.e))
                 # local grid
                 # If their is an intrusion, I want the aggregate to be randomly translated to a new
                 # location for placing for atleast self._count times.
                 self.loc, self._condition = self._identify_aggregate_and_itz(self.agg, self.amc_agg)
+
+                # if there is an intrusion
+                rotated = False
+                inner_count = 0
+                while self._condition and inner_count < 5000:
+                    # in try to rotate the aggregate in the same translated location
+                    self.agg, self.amc_agg = self._rotate(a, amc_a, random_translation_point)
+                    self.loc, self._condition = self._identify_aggregate_and_itz(self.agg, self.amc_agg)
+
+                    if not self._condition:
+                        print("No intrusion, rotation worked!")
+
+                    if self._condition and inner_count < 5000:
+                        inner_count += 1
+                        continue
+                    else:
+                        inner_count = 0
+                        break 
+
                 if not self._condition:
                     self._condition = False
                     self._count = 0
                     print("No intrusion")
                     # we only place when there is no intrusion.
                     print(f"Placed #{i+1} aggregate.")
+                    agg_volume = self._calculate_aggregate_volume(amc_a)
+                    aggregate_volume_list.append(agg_volume)
                 else:
                     self._count += 1
                     print("Intrusion detected!")
-                    if self._count > 20:
+                    if self._count > 5000:
                         print(f"Could not place #{i+1} aggregate.")
             self._condition = True
             # this is the new addition.
@@ -255,23 +303,44 @@ class Mesoscale:
 
         
         for i, (a, amc_a) in enumerate(zip(self.arranged_aggs, self.arranged_amc_aggs)):
-            while self._condition and self._count < 20:
+            while self._condition and self._count < 5000:
                 # translate the aggregate to a random location point.
                 self.agg, self.amc_agg = self._translate(a, amc_a, self._random_translation_point(self.l, self.m, self.n, self.e))
                 # local grid
                 # If their is an intrusion, I want the aggregate to be randomly translated to a new
                 # location for placing for atleast self._count times.
                 self.loc, self._condition = self._identify_aggregate_and_itz(self.agg, self.amc_agg)
+
+                # if there is an intrusion
+                rotated = False
+                inner_count = 0
+                while self._condition and inner_count < 5000:
+                    # in try to rotate the aggregate in the same translated location
+                    self.agg, self.amc_agg = self._rotate(a, amc_a, random_translation_point)
+                    self.loc, self._condition = self._identify_aggregate_and_itz(self.agg, self.amc_agg)
+                    
+                    if not self._condition:
+                        print("No intrusion, rotation worked!")
+
+                    if self._condition and inner_count < 5000:
+                        inner_count += 1
+                        continue
+                    else:
+                        inner_count = 0
+                        break 
+
                 if not self._condition:
                     self._condition = False
                     self._count = 0
                     print("No intrusion")
                     # we only place when there is no intrusion.
                     print(f"Placed #{i+1} aggregate.")
+                    agg_volume = self._calculate_aggregate_volume(amc_a)
+                    aggregate_volume_list.append(agg_volume)
                 else:
                     self._count += 1
                     print("Intrusion detected!")
-                    if self._count > 20:
+                    if self._count > 5000:
                         print(f"Could not place #{i+1} aggregate.")
             self._condition = True
             # this is the new addition.
@@ -299,11 +368,15 @@ class Mesoscale:
                 print(f"ITZ: {key}, value: {value}, percent: {(value/(self.L*self.W*self.H))*100}%")
                 itz_value = (value/(self.L*self.W*self.H))*100
             
-        if (agg_value+amc_value+itz_value) > 30:
+        if (agg_value+itz_value) > 30:
             print("Greater than 30%")
             agg_vol_frac = False
         else:
             print("Less than 30%")
+
+        aggregate_volume_fraction = sum(aggregate_volume_list) / self.concrete_volume
+
+        print(f"Aggregate Volume Fraction: {aggregate_volume_fraction:.02f}")
 
         # self.aggregate_size_ranges = [[5, 10]]
         
@@ -361,8 +434,8 @@ class Mesoscale:
         """This code determines the eight nodes of any element
        (i, j, k) in the global 3D background grid.
        Where
-       i = element no along x-axis
-       j = element no along y-axis
+       i = element no along x-axis.
+       j = element no along y-axis.
        k = element no along z-axis.
        The type of array returned is a numpy array to optimize
        numerical calculations.
@@ -381,7 +454,7 @@ class Mesoscale:
         return coordinates
 
     def _aggregate_volume_fraction(self, aggregate_size_range):
-        """calculates the aggregate volume fraction of each aggregate size
+        """calculates the aggregate volume fraction of each aggregate size range
         using the fuller curve function."""
         size1, size2 = aggregate_size_range[0], aggregate_size_range[1]
         pdii, pdi = self._fuller(size2), self._fuller(size1)
@@ -450,6 +523,27 @@ class Mesoscale:
             xsi, ysi, zsi =  x, y, z
 
         return  np.array((xsi, ysi, zsi))
+
+
+    def _calculate_aggregate_volume(self, poly):
+        """This function will calculate and
+        return the volume of a 3D polygonal/polyhedral
+        aggregate."""
+
+        origin = np.array([0, 0, 0])
+        volume = 0.0
+        n = len(poly)
+
+        # Triangulate the polyhedron and calculate the volume of each tetrahedron
+        for i in range(1, n - 1):
+            p1 = np.array(poly[0])
+            p2 = np.array(poly[i])
+            p3 = np.array(poly[i + 1])
+            # Volume of the tetrahedron formed by (origin, p1, p2, p3)
+            tetra_volume = np.abs(np.dot(p1, np.cross(p2, p3))) / 6
+            volume += tetra_volume
+
+        return volume
 
     def _generate_points(self, radius):
         """This function is responsible for the generation of the coordinates
@@ -534,10 +628,52 @@ class Mesoscale:
         Xi = xi + xp, Yi = yi + yp, Zi = zi + zp."""
 
         xp, yp, zp = translation_point
+        # print(f"Aggregate: {aggregate}")
         translated_aggregate = [(i[0] + xp, i[1] + yp, i[2] + zp) for i in aggregate]
         translated_amc_aggregate = [(i[0] + xp, i[1] + yp, i[2] + zp) for i in amc_aggregate]
 
         return np.array(translated_aggregate), np.array(translated_amc_aggregate)
+    
+    def _rotate(self, aggregate, amc_aggregate, translation_point):
+        """The newly generated random polyhedral aggregate is directly put into
+        the background grid space by RANDOM TRANSLATION.
+        Assuming the coordinates of the random translation point are
+        (xp, yp, zp)=(n7le, n8me, n9ne).
+        Therefore, the coordinates of the vertices after translation are:
+        Xi = xi + xp, Yi = yi + yp, Zi = zi + zp."""
+
+        xp, yp, zp = translation_point
+        translated_aggregate = [(i[0] + xp, i[1] + yp, i[2] + zp) for i in aggregate]
+        translated_amc_aggregate = [(i[0] + xp, i[1] + yp, i[2] + zp) for i in amc_aggregate]
+
+        # Step 2: Generate random rotation angles in radians
+        angle_x = np.random.uniform(0, 2 * np.pi)
+        angle_y = np.random.uniform(0, 2 * np.pi)
+        angle_z = np.random.uniform(0, 2 * np.pi)
+
+        # Step 3: Define rotation matrices for the X, Y, and Z axes
+        R_x = np.array([[1, 0, 0],
+                        [0, np.cos(angle_x), -np.sin(angle_x)],
+                        [0, np.sin(angle_x), np.cos(angle_x)]])
+        
+        R_y = np.array([[np.cos(angle_y), 0, np.sin(angle_y)],
+                        [0, 1, 0],
+                        [-np.sin(angle_y), 0, np.cos(angle_y)]])
+        
+        R_z = np.array([[np.cos(angle_z), -np.sin(angle_z), 0],
+                        [np.sin(angle_z), np.cos(angle_z), 0],
+                        [0, 0, 1]])
+
+        # Step 4: Combine the rotation matrices into a single matrix
+        R = R_z @ R_y @ R_x
+
+        # Step 5: Apply the rotation to the translated aggregate and AMC vertices
+        rotated_and_translated_aggregate = [R @ vertex for vertex in translated_aggregate]
+        rotated_and_translated_amc_aggregate = [R @ vertex for vertex in translated_amc_aggregate]
+
+
+
+        return np.array(rotated_and_translated_aggregate), np.array(rotated_and_translated_amc_aggregate)
 
     def _minimum_and_maximum(self, array):
         """According to the new coordinates of the vertices of the...
@@ -992,11 +1128,11 @@ from datetime import datetime
 start_time = datetime.now()
 
 # Trying to generate and place aggregates.
-m = Mesoscale(150, 150, 150, 4, 24, 500, 0.45)
+m = Mesoscale(100, 100, 100, 4, 24, 5000, 0.7)
 # print(m.glob[90][13])
-m._save_vti(m.glob, "faisal1.vti")
-m._export_data(m.glob, export_type="vtk", fileName="faisal1.vti")
-m.convert_vti_to_inp("faisal1.vti", "output_topology_n")
+m._save_vti(m.glob, "mesoscale_1mm_mesh.vti")
+m._export_data(m.glob, export_type="vtk", fileName="mesoscale_1mm_mesh.vti")
+m.convert_vti_to_inp("mesoscale_1mm_mesh.vti", "mesoscale_1mm_mesh")
 # print("saved vtk file.")
 
 end_time = datetime.now()
